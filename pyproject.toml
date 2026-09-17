@@ -1,0 +1,26 @@
+[project]
+name = "whitespace-analyzer"
+version = "0.1.0"
+description = "Configurable competitive whitespace data platform (SQLite + DuckDB + dbt + Streamlit)"
+requires-python = ">=3.13"
+dependencies = [
+    "dbt-core>=1.12.4",
+    "dbt-duckdb>=1.11.0",
+    "duckdb>=1.5.5",
+    "pydantic>=2.13.5",
+    "requests>=2.34.2",
+    "streamlit>=1.63.0",
+]
+
+[project.scripts]
+whitespace-analyzer = "whitespace_analyzer:main"
+
+[build-system]
+requires = ["uv_build>=0.12.9,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.16.7",
+]

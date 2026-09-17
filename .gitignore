@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+. Ruff cache
+.ruff_cache/
+.pytest_cache/
+
+# uv
+.uv/
+
+# Data stores (file-based engines, per architecture §2-3)
+data/*.db
+data/*.db-journal
+data/*.sqlite*
+data/*.duckdb*
+data/*.duckdb.wal
+
+# Streamlit
+.streamlit/secrets.toml
+
+# dbt
+dbt/target/
+dbt/logs/
+dbt/dbt_packages/
+dbt/.user.yml
+
+# Env
+.env
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
+airflow/airflow_home/
+airflow/.venv/
+
+# kilo code
+.kilo/

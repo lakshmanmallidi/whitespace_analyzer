@@ -1,0 +1,48 @@
+name: whitespace_analyzer
+version: "1.0.0"
+config-version: 2
+
+profile: whitespace_analyzer
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+snapshot-paths: ["snapshots"]
+
+models:
+  whitespace_analyzer:
+    bronze:
+      +materialized: view
+      +schema: bronze
+    silver:
+      +materialized: incremental
+      +schema: silver
+    gold:
+      +materialized: incremental
+      +schema: gold
+
+snapshots:
+  whitespace_analyzer:
+    +target_schema: silver
+
+seeds:
+  whitespace_analyzer:
+    +schema: bronze
+    worldcities:
+      +column_types:
+        city: varchar
+        city_ascii: varchar
+        lat: double
+        lng: double
+        country: varchar
+        iso2: varchar
+        iso3: varchar
+        admin_name: varchar
+        capital: varchar
+        population: bigint
+        id: varchar
+    uszips:
+      +column_types:
+        zip: varchar
+        lat: double
+        lng: double
+        population: bigint

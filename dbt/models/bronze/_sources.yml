@@ -1,0 +1,11 @@
+version: 2
+
+sources:
+  - name: ods
+    description: "Raw collections ingested from the SQLite ODS by whitespace_analyzer.analytics.duckdb_ingest"
+    schema: raw
+    tables:
+      - name: brands
+      - name: places
+      - name: competitors
+      - name: app_settings

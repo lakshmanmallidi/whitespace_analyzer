@@ -1,0 +1,20 @@
+version: 2
+
+models:
+  - name: locations
+    description: "worldcities cities matched to the nearest US ZIP, one ZIP per city."
+    columns:
+      - name: zip
+        tests: [unique]
+
+  - name: places_with_locations
+    description: "Operational places (current snapshot) joined to the location (city/state) of their ZIP."
+    columns:
+      - name: place_id
+        tests: [not_null, unique]
+      - name: brand_id
+        tests: [not_null]
+      - name: place_location
+        tests: [not_null]
+      - name: updated_at
+        tests: [not_null]

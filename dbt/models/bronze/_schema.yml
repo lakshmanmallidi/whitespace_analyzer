@@ -1,0 +1,143 @@
+version: 2
+
+models:
+  - name: brands
+    description: "Bronze passthrough of raw brands with typed columns."
+    columns:
+      - name: id
+        data_type: bigint
+        tests: [not_null, unique]
+      - name: brand_name
+        data_type: varchar
+        tests: [not_null, unique]
+      - name: industry_domain
+        data_type: varchar
+      - name: website_url
+        data_type: varchar
+      - name: created_at
+        data_type: timestamp
+        tests: [not_null]
+
+  - name: competitors
+    description: "Bronze passthrough of raw brand→competitor links."
+    columns:
+      - name: brand_id
+        data_type: bigint
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('brands')
+                field: id
+      - name: competitor_id
+        data_type: bigint
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('brands')
+                field: id
+      - name: created_at
+        data_type: timestamp
+        tests: [not_null]
+
+  - name: app_settings
+    description: "Bronze passthrough of raw application settings."
+    columns:
+      - name: key
+        data_type: varchar
+        tests: [not_null, unique]
+      - name: value
+        data_type: varchar
+        tests: [not_null]
+      - name: updated_at
+        data_type: timestamp
+        tests: [not_null]
+
+  - name: places
+    description: "Bronze passthrough of raw Google Places with typed columns."
+    columns:
+      - name: id
+        data_type: bigint
+        tests: [not_null, unique]
+      - name: brand_id
+        data_type: bigint
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('brands')
+                field: id
+      - name: place_id
+        data_type: varchar
+        tests: [not_null, unique]
+      - name: name
+        data_type: varchar
+        tests: [not_null]
+      - name: formatted_address
+        data_type: varchar
+        tests: [not_null]
+      - name: postal_code
+        data_type: varchar
+      - name: latitude
+        data_type: double
+        tests: [not_null]
+      - name: longitude
+        data_type: double
+        tests: [not_null]
+      - name: national_phone
+        data_type: varchar
+      - name: international_phone
+        data_type: varchar
+      - name: website_uri
+        data_type: varchar
+      - name: rating
+        data_type: double
+      - name: user_rating_count
+        data_type: bigint
+      - name: price_level
+        data_type: varchar
+        tests:
+          - accepted_values:
+              arguments:
+                values:
+                  - PRICE_LEVEL_FREE
+                  - PRICE_LEVEL_INEXPENSIVE
+                  - PRICE_LEVEL_MODERATE
+                  - PRICE_LEVEL_EXPENSIVE
+                  - PRICE_LEVEL_VERY_EXPENSIVE
+      - name: business_status
+        data_type: varchar
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - OPERATIONAL
+                  - CLOSED_TEMPORARILY
+                  - CLOSED_PERMANENTLY
+      - name: primary_type
+        data_type: varchar
+      - name: types
+        data_type: json
+        tests: [not_null]
+      - name: utc_offset_minutes
+        data_type: bigint
+        tests: [not_null]
+      - name: open_now
+        data_type: boolean
+        tests: [not_null]
+      - name: weekday_hours
+        data_type: json
+        tests: [not_null]
+      - name: google_maps_uri
+        data_type: varchar
+      - name: raw_json
+        data_type: json
+        tests: [not_null]
+      - name: created_at
+        data_type: timestamp
+        tests: [not_null]
+      - name: updated_at
+        data_type: timestamp
+        tests: [not_null]
