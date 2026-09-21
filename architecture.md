@@ -11,7 +11,7 @@ For a registered brand and its competitors, the platform answers: *where is this
 It works in two planes that deliberately never overlap:
 
 - the **operational plane** — Streamlit over the SQLite ODS — captures brands, competitor links and store locations;
-- the **analytical plane** — DuckDB, modelled with dbt — produces the analysis that dashboards read.
+- the **analytical plane** — DuckDB, modelled with dbt — produces the analysis the Reports tab reads.
 
 Data moves one way: Google Places → ODS → DuckDB `raw` → `bronze` → `silver` → `gold`.
 
@@ -29,10 +29,11 @@ Data moves one way: Google Places → ODS → DuckDB `raw` → `bronze` → `sil
 
 ```mermaid
 flowchart TD
-    subgraph Control["Streamlit control plane (app/)"]
+    subgraph App["Streamlit app (app/)"]
         BRANDS["Brands tab<br/>registry + competitors"]
-        SETTINGS["Settings tab<br/>Google API key"]
+        SETTINGS["Settings tab<br/>API key + reset"]
         PLACES["Places tab<br/>read-only inspection"]
+        REPORTS["Reports tab<br/>charts over gold"]
     end
 
     BRANDS -->|fetch button| FETCH["fetch_places()"]
@@ -47,7 +48,7 @@ flowchart TD
     BRONZE --> SILVER["silver<br/>locations, places_with_locations"]
     BRONZE --> SNAP[["places_history<br/>snapshot (SCD2)"]]
     SILVER --> GOLD["gold<br/>analytics marts"]
-    GOLD --> EVIDENCE["Evidence.dev<br/>dashboards"]
+    GOLD --> REPORTS
 
     AF{{"Airflow (isolated venv)<br/>ods_to_duckdb · dbt_run"}} -.->|orchestrates| RAW
     AF -.->|orchestrates| BRONZE
@@ -61,23 +62,26 @@ flowchart TD
 | UI / control plane | Streamlit | Fastest path to forms and dataframes; no frontend build. |
 | Ingestion source | Google Places API (New), Text Search | Authoritative store data with ratings, hours, status and coordinates. |
 | ODS | SQLite | Embedded, transactional, well matched to the registration and upsert workload. |
-| Warehouse / OLAP | DuckDB | Embedded columnar engine; `sqlite` and `spatial` extensions; the same file dbt and dashboards read. |
+| Warehouse / OLAP | DuckDB | Embedded columnar engine; `sqlite` and `spatial` extensions; the same file dbt and the Reports tab read. |
 | Transformation | dbt Core + dbt-duckdb | Contracts, tests, snapshots and lineage; models versioned with the application. |
 | Orchestration | Airflow 2.11 in an isolated venv | Scheduling, retries and observable runs. Pinned to 2.11 because Airflow 3 dropped the SQLite metadata backend. |
 | Spatial | DuckDB `spatial` extension | Point construction and distance-based city matching. |
-| Dashboards | Evidence.dev | Markdown + SQL dashboards reading DuckDB directly. |
+| Reporting | Streamlit Reports tab, Altair charts + pydeck store map | Reads the gold marts straight from DuckDB, so reporting ships with the app instead of a second deployment. |
 
 ## 5. Repository layout
 
 ```text
 whitespace_analyzer/
-├── app/                         # Streamlit control plane
-│   ├── main.py                  # page config, three tabs, brand/competitor/Google sections
+├── app/                         # Streamlit app (control plane + reports)
+│   ├── main.py                  # page config, four tabs, brand/competitor/Google sections
 │   ├── places_page.py           # read-only Places tab (table + inspector + raw JSON)
-│   └── settings_page.py         # Google Places API key form
+│   ├── reports_page.py          # Reports tab: Altair charts + pydeck store map
+│   └── settings_page.py         # API key form + danger-zone reset
 ├── src/whitespace_analyzer/
 │   ├── ingestion/google_places.py   # Places API client + place_to_row + persist_places
 │   ├── analytics/duckdb_ingest.py   # ODS → raw watermark merge
+│   ├── analytics/brand_performance.py  # reads gold.brand_performance for the Reports tab
+│   ├── analytics/store_map.py   # resolves our vs competitor store pins for the store map
 │   └── ods/
 │       ├── database.py          # SQLite schema, migrations, worldcities seed loader
 │       ├── brands.py            # create/list/exists
@@ -100,7 +104,7 @@ whitespace_analyzer/
 │   ├── airflow_env.sh           # env: AIRFLOW_HOME, sqlite conn, macOS workaround
 │   ├── start_airflow.zsh        # one-command dev launcher
 │   ├── dags/ods_to_duckdb.py    # hourly :00
-│   ├── dags/dbt_run.py          # hourly :30, seed >> run >> snapshot >> test
+│   ├── dags/dbt_run.py          # hourly :30, seed >> bronze >> snapshot >> run >> test
 │   └── airflow_home/            # runtime state (git-ignored: airflow.db, cfg, logs)
 ├── data/                        # git-ignored: ods.sqlite, warehouse.duckdb
 └── tests/                       # pytest for ODS, ingestion and ingest logic
@@ -173,13 +177,14 @@ Singular tests in `dbt/tests/` cover what generic tests cannot: value ranges (la
 
 ### 6.6 Gold — analytics marts
 
-Gold holds the final analytics models and is the only layer dashboards read from. The whitespace analysis lives here:
+Gold holds the final analytics models and is the only layer the Reports tab reads from. The whitespace analysis lives here:
 
 - per-ZIP penetration classification — `PENETRATED` (subject brand present), `COMPETITIVE_WHITESPACE` (subject absent, one or more competitors present), `UNPENETRATED_WHITESPACE` (neither present);
 - footprint benchmarks per brand (location counts, rating and review aggregates, coverage);
-- the competitive graph linking a brand to its competitors' footprints.
+- the competitive graph linking a brand to its competitors' footprints — `brand_competitors` materialises each directed edge with both names attached;
+- store-grain pins for the map — `store_points` is one row per operational store carrying its coordinates, so the app plots individual locations instead of city centroids.
 
-Gold models are built from `silver` only, so no mart reaches around the conformance and enrichment already applied.
+Gold models read facts from `silver` and dimensions from `bronze` (`brands`, `competitors`), so no mart reaches around the conformance and enrichment already applied.
 
 ### 6.7 Reference data
 
@@ -192,7 +197,7 @@ Airflow runs ingestion and modelling on a schedule, with retries and a run histo
 | DAG | Schedule | Tasks |
 |---|---|---|
 | `ods_to_duckdb` | hourly at `:00` | one `BashOperator` calling `uv run python -c "...ingest_ods_to_duckdb()"` |
-| `dbt_run` | hourly at `:30` | `dbt_seed >> dbt_run >> dbt_snapshot >> dbt_test` |
+| `dbt_run` | hourly at `:30` | `dbt_seed >> dbt_bronze >> dbt_snapshot >> dbt_run >> dbt_test` |
 
 Both are `catchup=False`, `max_active_runs=1` (single-writer safety on the DuckDB file), with one retry after five minutes. `dbt_test` is the last task in the chain so a data-quality failure surfaces in Airflow before anyone reads the marts.
 
@@ -218,7 +223,7 @@ Airflow metadata is a separate SQLite file from the ODS; `airflow_home/` is runt
 | Ingestion source | Google Places API (New) only | Authoritative, structured, no parsing or LLM fragility | Paid API; Enterprise SKU for hours and status |
 | Earlier scraping stack | Removed (Crawl4AI/LLM/Ollama) | Unreliable, slow and expensive to maintain | Lost non-Google sources |
 | ODS engine | SQLite | Embedded and transactional; matches the upsert workload | Single writer |
-| Warehouse engine | DuckDB | Embedded columnar; one file for ingest, dbt and dashboards | Single writer; file locking |
+| Warehouse engine | DuckDB | Embedded columnar; one file for ingest, dbt and the Reports tab | Single writer; file locking |
 | ODS → warehouse | Python watermark merge, not dbt | dbt cannot attach SQLite and write DuckDB in one model | One bespoke step outside dbt |
 | Merge semantics | Delete + insert by primary key | Simple, idempotent, handles updates without duplicates | ODS-side deletes are not captured |
 | Typing boundary | Strict at `bronze` via contracts | One place to fail; `raw` stays a faithful copy | Bronze is no longer a pure passthrough |
@@ -245,7 +250,7 @@ Airflow metadata is a separate SQLite file from the ODS; `airflow_home/` is runt
 The end goal is a scheduled, self-serve whitespace analytics product on the same architecture, with these capabilities complete:
 
 - **Gold analytics.** The whitespace marts are the product: per-ZIP penetration for every brand/competitor set, footprint benchmarks, and the competitive graph, all covered by business-rule tests.
-- **Evidence.dev dashboards.** Reporting reads gold directly from DuckDB: a whitespace map, penetration KPIs, brand-vs-competitor comparison, and a data-quality page driven by dbt test results. Streamlit remains the write and control surface; reporting lives in Evidence.
+- **Reporting.** The Reports tab reads gold directly from DuckDB: whitespace map, penetration KPIs, brand-vs-competitor comparison, and a data-quality page driven by dbt test results. Reporting stays inside the Streamlit app, so there is one deployment rather than two.
 - **Production orchestration.** Airflow moves off `standalone` and SQLite metadata to a durable backend and executor, ingestion is scheduled rather than clicked, and failures alert.
 - **Lifecycle fidelity.** Deletions and closures propagate from the ODS through `raw` into the marts, so history and current state agree.
 - **Broader coverage.** A richer reference source lifts the match rate beyond major cities and supports non-US geographies.

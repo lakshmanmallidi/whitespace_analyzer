@@ -75,4 +75,4 @@ In the Airflow UI, find the **`ods_to_duckdb`** DAG and trigger it with the **�
 
 ### 7. Run all dbt models
 
-Find the **`dbt_run`** DAG and trigger it with **▶**. It runs the models, the snapshot and the tests in order (`seed → run → snapshot → test`), so this single trigger builds everything and fails visibly if a data-quality check breaks.
+Find the **`dbt_run`** DAG and trigger it with **▶**. It runs the models, the snapshot and the tests in order (`seed → bronze → snapshot → run → test`), so this single trigger builds everything and fails visibly if a data-quality check breaks. The bronze views are built before the snapshot because the snapshot reads `bronze.places`, and the snapshot is built before the full run because `silver.places_with_locations` reads `places_history` — the order matters on a fresh warehouse.

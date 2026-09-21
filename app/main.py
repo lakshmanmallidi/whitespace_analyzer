@@ -13,9 +13,11 @@ from whitespace_analyzer.ods.settings import get_setting
 
 try:
     from app.places_page import render_places_tab
+    from app.reports_page import render_reports_tab
     from app.settings_page import render_settings_tab
 except ModuleNotFoundError:  # `streamlit run app/main.py` puts app/ on sys.path
     from places_page import render_places_tab
+    from reports_page import render_reports_tab
     from settings_page import render_settings_tab
 
 st.set_page_config(page_title="Whitespace Analyzer", page_icon="🗺️", layout="wide")
@@ -186,13 +188,15 @@ def main() -> None:
     st.caption("Competitive whitespace platform backed by the SQLite ODS.")
 
     conn = get_connection()
-    brands_tab, places_tab, settings_tab = st.tabs(
-        ["Brands", "Places", "Settings"]
+    brands_tab, places_tab, reports_tab, settings_tab = st.tabs(
+        ["Brands", "Places", "Reports", "Settings"]
     )
     with brands_tab:
         render_brands_tab(conn)
     with places_tab:
         render_places_tab(conn)
+    with reports_tab:
+        render_reports_tab()
     with settings_tab:
         render_settings_tab(conn)
 

@@ -31,6 +31,7 @@ uszips as (
         lower(trim(state_name)) as state_name_key,
         'united states' as country,
         density,
+        population as zip_population,
         lat,
         lng
     from {{ ref('uszips') }}
@@ -48,6 +49,7 @@ candidates as (
         z.zip,
         z.state_name,
         z.density,
+        z.zip_population,
         ST_Distance_Sphere(
             ST_Point(w.lng, w.lat),
             ST_Point(z.lng, z.lat)
@@ -77,5 +79,6 @@ select
     population,
     case when rn = 1 and distance_m <= {{ match_threshold_m }} then zip end as zip,
     case when rn = 1 and distance_m <= {{ match_threshold_m }} then state_name end as state_name,
-    case when rn = 1 and distance_m <= {{ match_threshold_m }} then density end as density
+    case when rn = 1 and distance_m <= {{ match_threshold_m }} then density end as density,
+    case when rn = 1 and distance_m <= {{ match_threshold_m }} then zip_population end as zip_population
 from candidates

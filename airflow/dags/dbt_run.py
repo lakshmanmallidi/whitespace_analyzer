@@ -29,6 +29,24 @@ with DAG(
             "--project-dir dbt --profiles-dir dbt"
         ),
     )
+    # bronze first: the snapshot reads bronze.places, so the views have to
+    # exist before anything snapshots them.
+    dbt_bronze = BashOperator(
+        task_id="dbt_bronze",
+        bash_command=(
+            f"cd {PROJECT_ROOT} && uv run dbt run --select path:models/bronze "
+            "--project-dir dbt --profiles-dir dbt"
+        ),
+    )
+    # then the snapshot: silver.places_with_locations reads places_history, so
+    # on a fresh warehouse it must be built before the silver/gold run below.
+    dbt_snapshot = BashOperator(
+        task_id="dbt_snapshot",
+        bash_command=(
+            f"cd {PROJECT_ROOT} && uv run dbt snapshot "
+            "--project-dir dbt --profiles-dir dbt"
+        ),
+    )
     dbt_run = BashOperator(
         task_id="dbt_run",
         bash_command=(
@@ -43,11 +61,4 @@ with DAG(
             "--project-dir dbt --profiles-dir dbt"
         ),
     )
-    dbt_snapshot = BashOperator(
-        task_id="dbt_snapshot",
-        bash_command=(
-            f"cd {PROJECT_ROOT} && uv run dbt snapshot "
-            "--project-dir dbt --profiles-dir dbt"
-        ),
-    )
-    dbt_seed >> dbt_run >> dbt_snapshot >> dbt_test
+    dbt_seed >> dbt_bronze >> dbt_snapshot >> dbt_run >> dbt_test

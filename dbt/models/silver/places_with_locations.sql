@@ -53,6 +53,8 @@ select
     g.population,
     g.density,
     g.city_location,
+    ST_Distance_Sphere(p.place_location, g.city_location)
+        as distance_from_city_center,
     p.updated_at
 from places p
 left join locations g

@@ -8,6 +8,7 @@ dependencies = [
     "dbt-duckdb>=1.11.0",
     "duckdb>=1.5.5",
     "pydantic>=2.13.5",
+    "pydeck>=0.9.3",
     "requests>=2.34.2",
     "streamlit>=1.63.0",
 ]

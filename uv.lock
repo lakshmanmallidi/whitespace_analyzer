@@ -1645,6 +1645,7 @@ dependencies = [
     { name = "dbt-duckdb" },
     { name = "duckdb" },
     { name = "pydantic" },
+    { name = "pydeck" },
     { name = "requests" },
     { name = "streamlit" },
 ]
@@ -1661,6 +1662,7 @@ requires-dist = [
     { name = "dbt-duckdb", specifier = ">=1.11.0" },
     { name = "duckdb", specifier = ">=1.5.5" },
     { name = "pydantic", specifier = ">=2.13.5" },
+    { name = "pydeck", specifier = ">=0.9.3" },
     { name = "requests", specifier = ">=2.34.2" },
     { name = "streamlit", specifier = ">=1.63.0" },
 ]
